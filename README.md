@@ -35,42 +35,16 @@ m.Params.TimeLimit = 600
 
 # Code Instructions
 
-  
+Here are sample commands to run from the root directory of the repository, which will run the code and create some of the tables and figures for the paper.  
 
 ```python
-
 mkdir results/csv
-
 mkdir results/joblib
-
 mkdir results/figures
-
 mkdir results/tables
-
-  
-
 python run_one.py 1 0 normal_at_min 1000 2023 net
-
-# python run_many.py
-
-  
-
-# Run notebook section_3_illustration.ipynb
-
-  
-
+# python run_many.py # Run all the experiments. May take awhile to run!
 python section_4_tables_and_figures.py
-
 Rscript section_4_tables_and_figures.R
-
-  
-
-# Run notebook section_5_nonlinear_optimization.ipynb
-
-# Run notebook section_5_price_optimization.ipynb
-
-  
-
 python section_6_avocado.py
-
 ```
