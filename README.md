@@ -8,15 +8,15 @@ The following notebook shows the illustration of our extended convex hull validi
 
 ## Section 4: Numerical Results
 
-In the [src](https://research-git.uiowa.edu/yilin-and-sam/extvdom/-/tree/main/src) folder, you can find the code for the numerical experiments conducted in Section 4.
+In the [src](src) folder, you can find the code for the numerical experiments conducted in Section 4.
 
 All the benchmark functions tested are defined in the *functions* python file (**src/function.py**). You can add new benchmark functions by defining them in this file and then add basic properties in the function `generate_function`.
 
 In the *other* python file (**src/other.py**), you can adjust sample distributions and sample noises in `generate_samples` and specify machine learning models used to learn from the data in `train_model`. If a new machine learning model is not supported by [Gurobi Machine Learning](https://gurobi-machinelearning.readthedocs.io/en/stable/index.html), then a customized helper function should be added in the *gurobi_helper* python file(**src/gurobi_helper.py**).
 
-In the [scripts](https://research-git.uiowa.edu/yilin-and-sam/extvdom/-/tree/main/scripts) folder, you can find the scripts to run the numerical tests in a high performance computer (**scripts/hpc_many_fixed_seed.sh**, **scripts/hpc_many_seeds.sh**). If you want to run the tests on your local machine, you can use the Python files (**srcipts/run_one.py**, **scripts/run_many.py**).
+In the [scripts](scripts) folder, you can find the scripts to run the numerical tests in a high performance computer (**scripts/hpc_many_fixed_seed.sh**, **scripts/hpc_many_seeds.sh**). If you want to run the tests on your local machine, you can use the Python files (**srcipts/run_one.py**, **scripts/run_many.py**).
 
-In the [results](https://research-git.uiowa.edu/yilin-and-sam/extvdom/-/tree/main/results) folder, we store all the numerical test results in [output.csv](https://research-git.uiowa.edu/yilin-and-sam/extvdom/-/blob/main/results/output.csv).
+In the [results](results) folder, we store all the numerical test results in [output.csv](results/output.csv).
 
 ## Section 5: Two Stylized Optimization Models
 
