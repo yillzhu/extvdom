@@ -4,7 +4,7 @@ Software and scripts to accompany the paper "An Extended Validity Domain for Con
 
 ## Section 3: Illustration
 
-The following notebook shows the illustration of our extended convex hull validity domain: [Illustration](https://research-git.uiowa.edu/yilin-and-sam/extvdom/-/blob/main/scripts/section_3_illustration.ipynb)
+The following notebook shows the illustration of our extended convex hull validity domain: [Illustration](scripts/section_3_illustration.ipynb)
 
 ## Section 4: Numerical Results
 
