@@ -22,11 +22,11 @@ In the [results](results) folder, we store all the numerical test results in [ou
 
 These two notebooks implemented the two stylized optimization models in Section 5.
 
- - [A simple nonlinear optimization](https://research-git.uiowa.edu/yilin-and-sam/extvdom/-/blob/main/scripts/section_5_nonlinear_optimization.ipynb)
- - [A price optimization](https://research-git.uiowa.edu/yilin-and-sam/extvdom/-/blob/main/scripts/section_5_price_optimization.ipynb)
+ - [A simple nonlinear optimization](scripts/section_5_nonlinear_optimization.ipynb)
+ - [A price optimization](scripts/section_5_price_optimization.ipynb)
  
 ## Section 6: A Case Study
-The [avocado price model](https://research-git.uiowa.edu/yilin-and-sam/extvdom/-/blob/main/scripts/section_6_avocado.py) from Section 6 uses `gurobi_ml` and `gurobi_pandas` to generate optimization model with `GradientBoostingRegressor` from `Scikit Learn` embedded. This model takes long to solve in Gurobi v11, so setting a time limit for solving when setting up is recommended.
+The [avocado price model](scripts/section_6_avocado.py) from Section 6 uses `gurobi_ml` and `gurobi_pandas` to generate optimization model with `GradientBoostingRegressor` from `Scikit Learn` embedded. This model takes long to solve in Gurobi v11, so setting a time limit for solving when setting up is recommended.
 
 ```python
 m.Params.TimeLimit = 600
