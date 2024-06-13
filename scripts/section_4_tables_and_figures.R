@@ -212,21 +212,40 @@ my_print_function <- function(my_sampling) {
     tmp$`Validity Domain`[tmp$`Validity Domain` == "CH+"] <- "$\\CH^+$"
     tmp$`Validity Domain`[tmp$`Validity Domain` == "CH"] <- "$\\CH$"
     
-    print(
-        tmp %>% xtable(digits = 2),
-        include.rownames = FALSE,
-        sanitize.text.function = function(x){x},
-        file = paste0("../results/tables/", my_sampling, ".tex")
-        )
-
+    # print(
+    #     tmp %>% xtable(digits = 2),
+    #     include.rownames = FALSE,
+    #     sanitize.text.function = function(x){x},
+    #     file = paste0("../results/tables/", my_sampling, ".tex")
+    #     )
+    
+    tmp
 }
 
 # Save Tables XXX and YYY (2024-05-23) to file. These tables show how we perform
 # on the various functions. Table XXX shows the uniform sampling rule. Table YYY
 # shows the normal_at_min sampling rule.
 
-my_print_function(my_sampling = "uniform")
-my_print_function(my_sampling = "normal_at_min")
+df_uniform <- my_print_function(my_sampling = "uniform")
+df_normal <- my_print_function(my_sampling = "normal_at_min")
+#my_print_function(my_sampling = "all")
+
+# 2024-06-12: Attempt to combine uniform and normal_at_min tables
+
+df_all <- cbind(
+    df_uniform[, c(1, 2, 3)],
+    df_normal[, 3],
+    df_uniform[, 4],
+    df_normal[, 4],
+    df_uniform[, 5],
+    df_normal[, 5]
+)
+print(
+    df_all %>% xtable(digits = 2),
+    include.rownames = FALSE,
+    sanitize.text.function = function(x){x},
+    file = "../results/tables/all.tex"
+)
 
 # Save table showing R2 scores, similar to table 1 in Shi et al.
 
