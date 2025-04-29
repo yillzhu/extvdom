@@ -29,7 +29,7 @@ These two notebooks implemented the two stylized optimization models in Section 
 The [avocado price model](scripts/section_6_avocado.py) from Section 6 uses `gurobi_ml` and `gurobi_pandas` to generate optimization model with `GradientBoostingRegressor` from `Scikit Learn` embedded. This model takes long to solve in Gurobi v11, so setting a time limit for solving when setting up is recommended. Better performance can be acheived with Gurobi v12, in which case solves can be down in a few minutes.
 
 ## Online Supplement
-The online supplement contains a more granular analysis of the [mean errors](scripts/section_s2_mean_errors.ipynb) and [sensitivities](scripts/section_s3_sensitivity.ipynb) with repect to different parameters. The figures and tables generated for the online supplement can also be found in [figures](figures} and [tables](tables) folders.
+The online supplement contains a more granular analysis of the [mean errors](scripts/section_s2_mean_errors.ipynb) and [sensitivities](scripts/section_s3_sensitivity.ipynb) with repect to different parameters. The figures and tables generated for the online supplement can also be found in [figures](figures) and [tables](tables) folders.
 
 ```python
 m.Params.TimeLimit = 600
