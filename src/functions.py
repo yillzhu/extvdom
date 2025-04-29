@@ -73,6 +73,14 @@ def quintic(x1, x2, x3, x4, x5):
         result += np.abs(item**5 - 3*item**4 + 4*item**3 +2*item**2 - 10*item -4)
     return result
 
+def rotated_hyper_ellipsoid(*args):
+    result = 0
+    n = len(args)
+    for i in range(n):
+        temp = sum(args[:i+1])
+        result += temp**2
+    return result 
+
 def generate_function(func_id):
     
     if func_id == 1:
@@ -129,6 +137,12 @@ def generate_function(func_id):
         global_min = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         domain_l = -5.12 * np.ones(10)
         domain_r =  5.12 * np.ones(10)
+    elif func_id == 9:
+        obj_func = rotated_hyper_ellipsoid
+        mean = [0] * 20
+        global_min = [0] * 20
+        domain_l = [-10] * 20
+        domain_r = [10] * 20
         
     mean = np.array(mean)
     global_min = np.array(global_min)

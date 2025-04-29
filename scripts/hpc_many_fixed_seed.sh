@@ -32,7 +32,7 @@
 # enough slots to provide e.g. 32G there, you'd figure ~2G/slot and
 # request 16 in the job script:"
 
-#$ -pe smp 8
+#$ -pe smp 16 
 
 # "The mem_free resource is mostly useful as a constraint in combination
 # with the slot request, for example if you're submitting jobs you

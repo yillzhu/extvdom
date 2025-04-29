@@ -67,7 +67,7 @@ def numerical_test(func_id, noise_std, distribution, n_sample, my_seed, mod,
        
     # Optimize with no validity domain
     
-    if v_dom == 'box' or v_dom == 'ch' or v_dom == 'chplus':
+    if v_dom in ['box', 'ch', 'chplus', 'chp.05', 'chp.1']:
 
         model = gp.Model()
         model.Params.LogToConsole = 0
@@ -105,7 +105,7 @@ def numerical_test(func_id, noise_std, distribution, n_sample, my_seed, mod,
     
     #######################################################################
 
-    if v_dom == 'ch' or v_dom == 'chplus':
+    if v_dom in ['ch', 'chplus']:
 
         # Create the decision variables
         t = model.addMVar(shape=n_sample, vtype=GRB.CONTINUOUS, ub=1)
@@ -143,9 +143,55 @@ def numerical_test(func_id, noise_std, distribution, n_sample, my_seed, mod,
             obj_to_return = scale_print()
         else:
             print("No solution found (func = " + str(func_id) + ", v = chplus).")
+
+    #######################################################################
+
+    if v_dom == 'chp.05':
+
+        # Create the decision variables
+        t = model.addMVar(shape=n_sample, vtype=GRB.CONTINUOUS, ub=1)
+        s = model.addMVar(shape=X.shape[1] + 1, vtype=GRB.CONTINUOUS, lb = -GRB.INFINITY)
+
+        model.addConstr(t.sum() == 1)
+        model.addConstr(X_scaled.T @ t == xx + s[:-1])
+        model.addConstr(y_scaled.T @ t == yy + s[-1])
+        model.addConstr(s @ s <= (0.05*np.sqrt(X.shape[1]))**2)
+
+        setup_end = time.time()
+        model.optimize()
+        opt_end = time.time()
+
+        # Print the optimal solution and objective value
+        if model.status == GRB.OPTIMAL:
+            obj_to_return = scale_print()
+        else:
+            print("No solution found (func = " + str(func_id) + ", v = chp.05).")
         
     #######################################################################
-    
+
+    if v_dom == 'chp.1':
+
+        # Create the decision variables
+        t = model.addMVar(shape=n_sample, vtype=GRB.CONTINUOUS, ub=1)
+        s = model.addMVar(shape=X.shape[1] + 1, vtype=GRB.CONTINUOUS, lb = -GRB.INFINITY)
+
+        model.addConstr(t.sum() == 1)
+        model.addConstr(X_scaled.T @ t == xx + s[:-1])
+        model.addConstr(y_scaled.T @ t == yy + s[-1])
+        model.addConstr(s @ s <= (0.10*np.sqrt(X.shape[1]))**2)
+
+        setup_end = time.time()
+        model.optimize()
+        opt_end = time.time()
+
+        # Print the optimal solution and objective value
+        if model.status == GRB.OPTIMAL:
+            obj_to_return = scale_print()
+        else:
+            print("No solution found (func = " + str(func_id) + ", v = chp.1).")
+
+    #######################################################################
+
     if v_dom == 'svm' or v_dom == 'svm0':
 
         # Optimize with PWL OCSVM constraint on x
@@ -401,6 +447,7 @@ def run_one(func_id, noise_std, distribution, n_sample, my_seed, mod, v_domains)
         learned_mod = joblib.load(pkjoblib)
     except FileNotFoundError:
         train_start = time.time()
+        hidden_size = 50 if func_id == 9 else 30
         learned_mod, r2 = train_model(pk[-1], hidden_size, X_scaled, y_scaled)
         train_end = time.time()
         train_time = train_end - train_start

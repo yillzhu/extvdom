@@ -60,11 +60,13 @@ import pandas as pd
 import warnings
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.compose import make_column_transformer
 
 from sklearn.linear_model import LinearRegression
@@ -78,6 +80,9 @@ import gurobipy as gp
 import gurobipy_pandas as gppd
 from gurobi_ml import add_predictor_constr
 from sklearn.ensemble import GradientBoostingRegressor
+import sys
+sys.path.append('../src')
+from gurobi_helpers import *
 
 ###############################################################################
 # STAGE 1 --- Data import and preparation
@@ -142,7 +147,7 @@ r_plt = sns.scatterplot(data=df, x='price', y='units_sold', hue='region')
 r_plt.legend(fontsize = 12)
 r_plt.set_xlabel('Price', fontsize = 16)
 r_plt.set_ylabel('Units Sold', fontsize = 16)
-#  plt.savefig('../results/figures/avocado_data_scatterplot.png', dpi = 150, bbox_inches = 'tight')
+#  plt.savefig('../results/figures/avocado_data_scatterplot.png', dpi = 300, bbox_inches = 'tight')
 # plt.show()
 
 ###############################################################################
@@ -166,7 +171,10 @@ r_plt.set_ylabel('Units Sold', fontsize = 16)
 # We can observe a good $R^2$ value in the test set. We will now train the fit to the full dataset.
 
 X = df[["region", "price", "year", "peak"]]
+
 y = df["units_sold"]
+d_mean = np.mean(y)
+d_std = np.std(y)
 
 # Split the data for training and testing
 X_train, X_test, y_train, y_test = train_test_split(
@@ -385,8 +393,8 @@ feats = pd.DataFrame(
 # Gurobi's default
 #------------------------------------------------------------------------------
 
-env = gp.Env()
-#  env = gp.Env(params = params) # To enable Sam's floating license
+#env = gp.Env()
+env = gp.Env(params = params) # To enable Sam's floating license
 
 m = gp.Model("Avocado_Price_Allocation", env = env)
 m.Params.NonConvex = 2
@@ -399,6 +407,7 @@ x = gppd.add_vars(m, data, name = "x", lb = 0)
 s = gppd.add_vars(m, data, name = "s")
 u = gppd.add_vars(m, data, name = "w")
 d = gppd.add_vars(m, data, lb = -gp.GRB.INFINITY, name="demand")
+d_scaled = gppd.add_vars(m, data, lb=-gp.GRB.INFINITY, name="scaled_demand")
 
 m.setObjective((p * s).sum() - c_waste * u.sum() - (c_transport * x).sum(),
                gp.GRB.MAXIMIZE)
@@ -466,10 +475,12 @@ print(solution.round(3))
 # Recode the 378 and 8! They should not be hard-coded
 
 mu = m.addMVar(shape=(378), name='mu', lb = 0, ub = 1)
+enlarge_s = m.addMVar(shape=(8+8), lb=-gp.GRB.INFINITY)
+enlarged = m.addConstr(enlarge_s @ enlarge_s <= (0*np.sqrt(8+8))**2)
 diff_p = gppd.add_vars(m, data, name = "diff_p", lb = -np.inf, ub = np.inf)
 m.addConstr(mu.sum() == 1.0)
 X_pivot = df.pivot(index='date', columns='region', values='price').loc[:,regions]
-m.addConstrs(diff_p.values[i] == p.values[i] - (mu@X_pivot.values)[i] for i in range(8))
+m.addConstrs(diff_p.values[i] == p.values[i] - (mu@X_pivot.values)[i] - enlarge_s[i] for i in range(8))
 eps = 0.0 # Note that eps is currently zero! 
 m.addConstr((diff_p * diff_p).sum() <= eps, name = "diff_p_constraint")
 m.optimize()
@@ -494,7 +505,7 @@ print(solution.round(3))
 
 diff_d = gppd.add_vars(m, data, name = "diff_d", lb = -np.inf, ub = np.inf)
 y_pivot = df.pivot(index='date', columns='region', values='units_sold').loc[:,regions]
-m.addConstrs(diff_d.values[i] == d.values[i] - (mu@y_pivot.values)[i] for i in range(8))
+m.addConstrs(diff_d.values[i] == d.values[i] - (mu@y_pivot.values)[i] - enlarge_s[i+8] * d_std for i in range(8))
 m.addConstr((diff_d * diff_d).sum() <= eps, name = "diff_d_constraint")
 m.optimize()
 
@@ -512,11 +523,104 @@ opt_revenue = m.ObjVal
 print("\nThe optimal profit: $%f million\n" % opt_revenue)
 print(solution.round(3))
 
+#------------------------------------------------------------------------------
+# 0.05-CH^+
+#------------------------------------------------------------------------------
+
+m.remove(enlarged)
+enlarged = m.addConstr(enlarge_s @ enlarge_s <= (0.05*np.sqrt(8+8))**2)
+m.optimize()
+
+solution = pd.DataFrame(index=regions)
+solution["Price"] = p.gppd.X
+solution["Historical_Max"] = data.max_price
+solution["Allocated"] = x.gppd.X
+solution["Sold"] = s.gppd.X
+solution["Wasted"] = u.gppd.X
+solution["Pred_demand"] = d.gppd.X
+
+soln_chp05 = solution
+
+opt_revenue = m.ObjVal
+print("\nThe optimal profit: $%f million\n" % opt_revenue)
+print(solution.round(3))
+
+#------------------------------------------------------------------------------
+# 0.1-CH^+
+#------------------------------------------------------------------------------
+
+m.remove(enlarged)
+enlarged = m.addConstr(enlarge_s @ enlarge_s <= (0.1*np.sqrt(8+8))**2)
+m.optimize()
+
+solution = pd.DataFrame(index=regions)
+solution["Price"] = p.gppd.X
+solution["Historical_Max"] = data.max_price
+solution["Allocated"] = x.gppd.X
+solution["Sold"] = s.gppd.X
+solution["Wasted"] = u.gppd.X
+solution["Pred_demand"] = d.gppd.X
+
+soln_chp1 = solution
+
+opt_revenue = m.ObjVal
+print("\nThe optimal profit: $%f million\n" % opt_revenue)
+print(solution.round(3))
+
+#------------------------------------------------------------------------------
+# IsoFor
+#------------------------------------------------------------------------------
+
+m = gp.Model("Avocado_Price_Allocation", env = env)
+m.Params.NonConvex = 2
+m.Params.LogToConsole = 0
+m.Params.TimeLimit = 600
+
+p = gppd.add_vars(m, data, name = "price", lb = a_min, ub = a_max)
+x = gppd.add_vars(m, data, name = "x", lb = 0)
+s = gppd.add_vars(m, data, name = "s")
+u = gppd.add_vars(m, data, name = "w")
+d = gppd.add_vars(m, data, lb = -gp.GRB.INFINITY, name="demand")
+
+m.setObjective((p * s).sum() - c_waste * u.sum() - (c_transport * x).sum(),
+               gp.GRB.MAXIMIZE)
+
+m.addConstr(x.sum() == B)
+gppd.add_constrs(m, s, gp.GRB.LESS_EQUAL, x)
+gppd.add_constrs(m, s, gp.GRB.LESS_EQUAL, d)
+gppd.add_constrs(m, u, gp.GRB.EQUAL, x - s)
+
+m_feats = pd.concat([feats, p], axis=1)[["region", "price", "year", "peak"]]
+
+pred_constr = add_predictor_constr(m, reg, m_feats, d)
+
+p_scaled_var = m.addMVar(shape=(8), name = "price_scaled")
+scaler = MinMaxScaler()
+X_scaled = scaler.fit_transform(X_pivot)
+m.addConstrs((p_scaled_var[i] == (p[regions[i]]-scaler.data_min_[i])/(scaler.data_max_[i]-scaler.data_min_[i]) for i in range(8)))
+add_isofor_constr(m, X_scaled, p_scaled_var, d=5)
+
+m.optimize()
+
+solution = pd.DataFrame(index=regions)
+solution["Price"] = p.gppd.X
+solution["Historical_Max"] = data.max_price
+solution["Allocated"] = x.gppd.X
+solution["Sold"] = s.gppd.X
+solution["Wasted"] = u.gppd.X
+solution["Pred_demand"] = d.gppd.X
+
+soln_if = solution
+
+opt_revenue = m.ObjVal
+print("\nThe optimal profit: $%f million\n" % opt_revenue)
+print(solution.round(3))
+
 ###############################################################################
 # STAGE 6 --- Post-process and draw pictures
 ###############################################################################
 
-def print_graphs_primary():
+def print_graphs_primary(section):
 
     #  fig, axs = plt.subplots(4, 2, figsize=(10, 20))
     fig, axs = plt.subplots(4, 2, figsize = (10, 5))
@@ -557,55 +661,93 @@ def print_graphs_primary():
         #  plt.tight_layout()
 
         #  r_plt.legend(fontsize = 12)
-        #  plt.savefig('avocado_data_scatterplot.png', dpi = 150, bbox_inches = 'tight')
+        #  plt.savefig('avocado_data_scatterplot.png', dpi = 300, bbox_inches = 'tight')
 
         #  plt.tight_layout(pad = 1.0)
 
-    #  plt.savefig('../results/figures/avocado_no__opt_soln.png', dpi = 150, bbox_inches = 'tight')
+    #  plt.savefig('../results/figures/avocado_no__opt_soln.png', dpi = 300, bbox_inches = 'tight')
 
-    for k in range(8):
-        i = k//2
-        j = k%2
-        tmp0 = soln_gur.loc[[regions[k]],["Price", "Pred_demand"]]
-        sns.scatterplot(data = tmp0, x = 'Price', y = 'Pred_demand', legend = 0, ax = axs[i,j], s = 100)
-        axs[i, j].set_xlabel('')
-        axs[i, j].set_ylabel('')
-
-    #  plt.savefig('../results/figures/avocado_gur_opt_soln.png', dpi = 150, bbox_inches = 'tight')
-
-    for k in range(8):
-        i = k//2
-        j = k%2
-        tmp1 = soln_box.loc[[regions[k]],["Price", "Pred_demand"]]
-        sns.scatterplot(data = tmp1, x = 'Price', y = 'Pred_demand', legend = 0, ax = axs[i,j], s = 100)
-        axs[i, j].set_xlabel('')
-        axs[i, j].set_ylabel('')
-
-    #  plt.savefig('../results/figures/avocado_box_opt_soln.png', dpi = 150, bbox_inches = 'tight')
-
-    for k in range(8):
-        i = k//2
-        j = k%2
-        tmp2 = soln_ch.loc[[regions[k]],["Price", "Pred_demand"]]
-        sns.scatterplot(data = tmp2, x = 'Price', y = 'Pred_demand', legend = 0, ax = axs[i,j], s = 100)
-        axs[i, j].set_xlabel('')
-        axs[i, j].set_ylabel('')
-
-    #  plt.savefig('../results/figures/avocado_ch__opt_soln.png', dpi = 150, bbox_inches = 'tight')
-
-    for k in range(8):
-        i = k//2
-        j = k%2
-        tmp3 = soln_chplus.loc[[regions[k]],["Price", "Pred_demand"]]
-        sns.scatterplot(data = tmp3, x = 'Price', y = 'Pred_demand', legend = 0, ax = axs[i,j], s = 100)
-        axs[i, j].set_xlabel('')
-        axs[i, j].set_ylabel('')
-
-    plt.savefig('../results/figures/avocado_chp_opt_soln.png', dpi = 150, bbox_inches = 'tight')
+    # main paper section 6
+    if section == 'main':
+        for k in range(8):
+            i = k//2
+            j = k%2
+            tmp0 = soln_gur.loc[[regions[k]],["Price", "Pred_demand"]]
+            sns.scatterplot(data = tmp0, x = 'Price', y = 'Pred_demand', marker='o', legend = 0, ax = axs[i,j], s = 100)
+            axs[i, j].set_xlabel('')
+            axs[i, j].set_ylabel('')
+    
+        #  plt.savefig('../results/figures/avocado_gur_opt_soln.png', dpi = 300, bbox_inches = 'tight')
+    
+        for k in range(8):
+            i = k//2
+            j = k%2
+            tmp1 = soln_box.loc[[regions[k]],["Price", "Pred_demand"]]
+            sns.scatterplot(data = tmp1, x = 'Price', y = 'Pred_demand', marker='s', legend = 0, ax = axs[i,j], s = 100)
+            axs[i, j].set_xlabel('')
+            axs[i, j].set_ylabel('')
+    
+        #  plt.savefig('../results/figures/avocado_box_opt_soln.png', dpi = 300, bbox_inches = 'tight')
+    
+        for k in range(8):
+            i = k//2
+            j = k%2
+            tmp2 = soln_ch.loc[[regions[k]],["Price", "Pred_demand"]]
+            sns.scatterplot(data = tmp2, x = 'Price', y = 'Pred_demand', marker='^', legend = 0, ax = axs[i,j], s = 100)
+            axs[i, j].set_xlabel('')
+            axs[i, j].set_ylabel('')
+    
+        #  plt.savefig('../results/figures/avocado_ch__opt_soln.png', dpi = 300, bbox_inches = 'tight')
+    
+        for k in range(8):
+            i = k//2
+            j = k%2
+            tmp3 = soln_chplus.loc[[regions[k]],["Price", "Pred_demand"]]
+            sns.scatterplot(data = tmp3, x = 'Price', y = 'Pred_demand', marker='D',legend = 0, ax = axs[i,j], s = 100)
+            axs[i, j].set_xlabel('')
+            axs[i, j].set_ylabel('')
+    
+        plt.savefig('../results/figures/section_6_avocado_chplus_opt_soln.png', dpi = 300, bbox_inches = 'tight')
+        img = Image.open('../results/figures/section_6_avocado_chplus_opt_soln.png').convert("L")  # "L" mode = grayscale
+        img.save('../results/figures/section_6_avocado_chplus_opt_soln.png')
+    
+    
+    # EC section s3
+    if section == 'EC':
+        for k in range(8):
+            i = k//2
+            j = k%2
+            tmp4 = soln_chplus.loc[[regions[k]],["Price", "Pred_demand"]]
+            sns.scatterplot(data = tmp4, x = 'Price', y = 'Pred_demand', legend = 0, ax = axs[i,j], s = 100)
+            axs[i, j].set_xlabel('')
+            axs[i, j].set_ylabel('')
+    
+        #  plt.savefig('../results/figures/avocado_box_opt_soln.png', dpi = 300, bbox_inches = 'tight')
+    
+        for k in range(8):
+            i = k//2
+            j = k%2
+            tmp5 = soln_chp05.loc[[regions[k]],["Price", "Pred_demand"]]
+            sns.scatterplot(data = tmp5, x = 'Price', y = 'Pred_demand', legend = 0, ax = axs[i,j], s = 100)
+            axs[i, j].set_xlabel('')
+            axs[i, j].set_ylabel('')
+    
+        #  plt.savefig('../results/figures/avocado_ch__opt_soln.png', dpi = 300, bbox_inches = 'tight')
+    
+        for k in range(8):
+            i = k//2
+            j = k%2
+            tmp6 = soln_chp1.loc[[regions[k]],["Price", "Pred_demand"]]
+            sns.scatterplot(data = tmp6, x = 'Price', y = 'Pred_demand', legend = 0, ax = axs[i,j], s = 100)
+            axs[i, j].set_xlabel('')
+            axs[i, j].set_ylabel('')
+    
+        plt.savefig('../results/figures/section_s4_avocado_enlarged_chplus_opt_soln.png', dpi = 300, bbox_inches = 'tight')
 
     #  plt.show()
         
-print_graphs_primary()
+print_graphs_primary('main')
+print_graphs_primary('EC')
 
 #  solution.round(3)
 
